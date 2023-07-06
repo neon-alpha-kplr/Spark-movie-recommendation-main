@@ -7,7 +7,7 @@ COPY ./requirements.txt  /app/requirements.txt
 # Installez les dépendances requises
 RUN pip install -r requirements.txt
 # Copie tous les fichiers et répertoires du répertoire de construction vers le répertoire de travail du conteneur.
-COPY  . .
+COPY  ./app /app
 # Exposez le port sur lequel l'application Flask sera exécutée
 EXPOSE 5432
 # Démarrez l'application Flask

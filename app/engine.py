@@ -2,21 +2,31 @@ from pyspark.sql.types import *
 from pyspark.sql.functions import explode, col
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
-from pyspark.sql import SQLContext
+from pyspark.sql import Row, SQLContext
 
 class RecommendationEngine:
     def create_user(self, user_id):
         """Cette méthode permet de créer un nouvel utilisateur.
-        Elle prend en paramètre un user_id facultatif pour spécifier l'identifiant de l'utilisateur. Si user_id est None, un nouvel identifiant est généré automatiquement.
+        Elle prend en paramètre un user_id facultatif pour spécifier l'identifiant de l'utilisateur.
+        Si user_id est None, un nouvel identifiant est généré automatiquement.
         Si user_id est supérieur à max_user_identifier, max_user_identifier est mis à jour avec la valeur de user_id.
         La méthode retourne l'identifiant de l'utilisateur créé ou mis à jour."""
         # Méthode pour créer un nouvel utilisateur
-        ...
+        if type(user_id) != int\
+            or user_id < 1\
+            or self.df_users.where(f"userId = {user_id}").first()[0] == user_id:
+            user_id = self.max_user_identifier + 1
+        # Ajout du nouvel identifiant d'utilisateur dans le dataframe des utilisateurs
+        self.df_users = self.df_users.union(self.sql_context.createDataFrame([Row(userId = user_id)]))
+        # Mise à jour de l'identifiant maximal des utilisateurs
+        if user_id > self.max_user_identifier: self.max_user_identifier = user_id
+        return user_id
 
     def is_user_known(self, user_id):
         """Cette méthode permet de vérifier si un utilisateur est connu.
-        Elle prend en paramètre un user_id et retourne True si l'utilisateur est connu (c'est-à-dire si user_id est différent de None et inférieur ou égal à max_user_identifier), sinon elle retourne False."""
-        # Méthode pour vérifier si un utilisateur est connu
+        Elle prend en paramètre un user_id et retourne True si l'utilisateur est connu
+        (c'est-à-dire si user_id est différent de None et inférieur ou égal à max_user_identifier),
+        sinon elle retourne False."""
         return user_id <= self.max_user_identifier and self.df_users.where(f"userId = {user_id}").first()[0] == user_id
 
     def get_movie(self, movie_id):
@@ -107,7 +117,8 @@ class RecommendationEngine:
         self.df_users = self.df_ratings.select('userId').distinct()
         self.max_user_identifier = self.df_users.sort(col('userId').desc()).first()[0]
 
-        print(self.is_user_known(12))
+        print(self.df_users.schema)
+        print(self.create_user(120))
 """
 # Création d'une instance de la classe RecommendationEngine
 engine = RecommendationEngine(sc, "chemin_vers_ensemble_films", "chemin_vers_ensemble_evaluations")
