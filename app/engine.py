@@ -17,7 +17,7 @@ class RecommendationEngine:
         """Cette méthode permet de vérifier si un utilisateur est connu.
         Elle prend en paramètre un user_id et retourne True si l'utilisateur est connu (c'est-à-dire si user_id est différent de None et inférieur ou égal à max_user_identifier), sinon elle retourne False."""
         # Méthode pour vérifier si un utilisateur est connu
-        ...
+        return user_id <= self.max_user_identifier and self.df_users.where(f"userId = {user_id}").first()[0] == user_id
 
     def get_movie(self, movie_id):
         """Cette méthode permet d'obtenir un film.
@@ -77,11 +77,38 @@ class RecommendationEngine:
 
     def __init__(self, sc, movies_set_path, ratings_set_path):
         """Cette méthode d'initialisation est appelée lors de la création d'une instance de la classe RecommendationEngine.
-        Elle prend en paramètres le contexte Spark (sc), le chemin vers l'ensemble de données de films (movies_set_path) et le chemin vers l'ensemble de données d'évaluations (ratings_set_path).
-        La méthode initialise le contexte SQL à partir du contexte Spark, charge les données des ensembles de films et d'évaluations à partir des fichiers CSV spécifiés, définit le schéma des données, effectue diverses opérations de traitement des données et entraîne le modèle en utilisant la méthode privée __train_model()."""
+        Elle prend en paramètres le contexte Spark (sc), le chemin vers l'ensemble de données de films (movies_set_path)
+        et le chemin vers l'ensemble de données d'évaluations (ratings_set_path).
+        La méthode initialise le contexte SQL à partir du contexte Spark, charge les données des ensembles de films et
+        d'évaluations à partir des fichiers CSV spécifiés, définit le schéma des données, effectue diverses opérations
+        de traitement des données et entraîne le modèle en utilisant la méthode privée __train_model()."""
         # Méthode d'initialisation pour charger les ensembles de données et entraîner le modèle
-        ...
+        self.sql_context = SQLContext(sc)
 
+        schema_movies = StructType([StructField("movieId", IntegerType(), True),
+            StructField("title", StringType(), True),
+            StructField("genres", StringType(), True)])
+        self.df_movies = self.sql_context.read.format("csv") \
+            .option("header", "true") \
+            .option("delimiter", ",") \
+            .schema(schema_movies) \
+            .load(movies_set_path)
+        
+        schema_ratings = StructType([StructField("userId", IntegerType(), True),
+            StructField("movieId", IntegerType(), True),
+            StructField("rating", DoubleType(), True),
+            StructField("timestamp", IntegerType(), True)])
+        self.df_ratings = self.sql_context.read.format("csv") \
+            .option("header", "true") \
+            .option("delimiter", ",") \
+            .schema(schema_ratings) \
+            .load(ratings_set_path)
+
+        self.df_users = self.df_ratings.select('userId').distinct()
+        self.max_user_identifier = self.df_users.sort(col('userId').desc()).first()[0]
+
+        print(self.is_user_known(12))
+"""
 # Création d'une instance de la classe RecommendationEngine
 engine = RecommendationEngine(sc, "chemin_vers_ensemble_films", "chemin_vers_ensemble_evaluations")
 
@@ -93,6 +120,6 @@ if engine.is_user_known(user_id):
     engine.add_ratings(user_id, ratings)
     prediction = engine.predict_rating(user_id, movie.movieId)
     recommendations = engine.recommend_for_user(user_id, 10)
-
+"""
 """Pour utiliser la classe RecommendationEngine, vous devez créer une instance en passant le contexte Spark (sc) ainsi que les chemins vers les ensembles de données de films (movies_set_path) et d'évaluations (ratings_set_path).
 Vous pouvez ensuite utiliser les différentes méthodes de la classe pour créer de nouveaux utilisateurs, obtenir des films, ajouter de nouvelles évaluations, prédire des évaluations et obtenir des recommandations pour les utilisateurs."""
