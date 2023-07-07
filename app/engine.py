@@ -1,7 +1,9 @@
 from pyspark.sql.types import *
 from pyspark.sql.functions import explode, col
+
 from pyspark.ml.recommendation import ALS
 from pyspark.ml.evaluation import RegressionEvaluator
+
 from pyspark.sql import Row, SQLContext
 
 class RecommendationEngine:
@@ -16,11 +18,14 @@ class RecommendationEngine:
             or user_id < 1\
             or self.df_users.where(f"userId = {user_id}").first()[0] == user_id:
             user_id = self.max_user_identifier + 1
+        
         # Ajout du nouvel identifiant d'utilisateur dans le dataframe des utilisateurs
         self.df_users = self.df_users.union(self.sql_context.createDataFrame([Row(userId = user_id)]))
+        
         # Mise à jour de l'identifiant maximal des utilisateurs
         if user_id > self.max_user_identifier:
             self.max_user_identifier = user_id
+        
         return user_id
 
     def is_user_known(self, user_id):
@@ -98,7 +103,10 @@ class RecommendationEngine:
         La méthode initialise le contexte SQL à partir du contexte Spark, charge les données des ensembles de films et
         d'évaluations à partir des fichiers CSV spécifiés, définit le schéma des données, effectue diverses opérations
         de traitement des données et entraîne le modèle en utilisant la méthode privée __train_model()."""
-        self.sql_context = SQLContext(sc)
+        self.sql_context = SQLContext(sc).sparkSession
+
+        self.max_iter = 9
+        self.reg_param = 0.05
 
         schema_movies = StructType([StructField("movieId", IntegerType(), True),
             StructField("title", StringType(), True),
