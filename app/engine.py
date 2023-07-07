@@ -12,14 +12,15 @@ class RecommendationEngine:
         Si user_id est supérieur à max_user_identifier, max_user_identifier est mis à jour avec la valeur de user_id.
         La méthode retourne l'identifiant de l'utilisateur créé ou mis à jour."""
         # Méthode pour créer un nouvel utilisateur
-        if type(user_id) != int\
+        if isinstance(user_id, int)\
             or user_id < 1\
             or self.df_users.where(f"userId = {user_id}").first()[0] == user_id:
             user_id = self.max_user_identifier + 1
         # Ajout du nouvel identifiant d'utilisateur dans le dataframe des utilisateurs
         self.df_users = self.df_users.union(self.sql_context.createDataFrame([Row(userId = user_id)]))
         # Mise à jour de l'identifiant maximal des utilisateurs
-        if user_id > self.max_user_identifier: self.max_user_identifier = user_id
+        if user_id > self.max_user_identifier:
+            self.max_user_identifier = user_id
         return user_id
 
     def is_user_known(self, user_id):
@@ -29,24 +30,29 @@ class RecommendationEngine:
         sinon elle retourne False."""
         return user_id <= self.max_user_identifier and self.df_users.where(f"userId = {user_id}").first()[0] == user_id
 
-    def get_movie(self, movie_id):
+    def get_movie(self, movie_id=None):
         """Cette méthode permet d'obtenir un film.
-        Elle prend en paramètre un movie_id facultatif pour spécifier l'identifiant du film. Si movie_id est None, la méthode retourne un échantillon aléatoire d'un film à partir du dataframe best_movies_df. Sinon, elle filtre le dataframe movies_df pour obtenir le film correspondant à movie_id.
+        Elle prend en paramètre un movie_id facultatif pour spécifier l'identifiant du film. Si movie_id est None,
+        la méthode retourne un échantillon aléatoire d'un film à partir du dataframe best_movies_df.
+        Sinon, elle filtre le dataframe movies_df pour obtenir le film correspondant à movie_id.
         La méthode retourne un dataframe contenant les informations du film (colonne "movieId" et "title")."""
-        # Méthode pour obtenir un film
-        ...
+        if movie_id is None:
+            return self.df_movies.select(['movieId','title']).sample(fraction=0.01).limit(1)
+        else:
+            return self.df_movies.select(['movieId','title']).where(f"movieId = {movie_id}").limit(1)
 
     def get_ratings_for_user(self, user_id):
         """Cette méthode permet d'obtenir les évaluations d'un utilisateur.
         Elle prend en paramètre un user_id et filtre le dataframe ratings_df pour obtenir les évaluations correspondantes à l'utilisateur.
         La méthode retourne un dataframe contenant les évaluations de l'utilisateur (colonnes "movieId", "userId" et "rating")."""
         # Méthode pour obtenir les évaluations d'un utilisateur
-        ...
+        return self.df_ratings.where(f"userId = {user_id}").select(['movieId','userId','rating'])
 
     def add_ratings(self, user_id, ratings):
         """Cette méthode permet d'ajouter de nouvelles évaluations au modèle et de re-entraîner le modèle.
         Elle prend en paramètres un user_id et une liste de ratings contenant les nouvelles évaluations.
-        La méthode crée un nouveau dataframe new_ratings_df à partir de la liste de ratings et l'ajoute au dataframe existant ratings_df en utilisant l'opération union().
+        La méthode crée un nouveau dataframe new_ratings_df à partir de la liste de ratings et l'ajoute
+        au dataframe existant ratings_df en utilisant l'opération union().
         Ensuite, les données sont divisées en ensembles d'entraînement (training) et de test (test) en utilisant la méthode randomSplit().
         Enfin, la méthode privée __train_model() est appelée pour re-entraîner le modèle."""
         # Méthode pour ajouter de nouvelles évaluations et re-entraîner le modèle
@@ -92,7 +98,6 @@ class RecommendationEngine:
         La méthode initialise le contexte SQL à partir du contexte Spark, charge les données des ensembles de films et
         d'évaluations à partir des fichiers CSV spécifiés, définit le schéma des données, effectue diverses opérations
         de traitement des données et entraîne le modèle en utilisant la méthode privée __train_model()."""
-        # Méthode d'initialisation pour charger les ensembles de données et entraîner le modèle
         self.sql_context = SQLContext(sc)
 
         schema_movies = StructType([StructField("movieId", IntegerType(), True),
@@ -117,8 +122,7 @@ class RecommendationEngine:
         self.df_users = self.df_ratings.select('userId').distinct()
         self.max_user_identifier = self.df_users.sort(col('userId').desc()).first()[0]
 
-        print(self.df_users.schema)
-        print(self.create_user(120))
+        self.get_movie().show()
 """
 # Création d'une instance de la classe RecommendationEngine
 engine = RecommendationEngine(sc, "chemin_vers_ensemble_films", "chemin_vers_ensemble_evaluations")
